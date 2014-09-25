@@ -1,0 +1,158 @@
+#!/usr/bin/python
+# 2012-09-21 tyler - concise wrapper for apt-get, based on "apt" in Linux Mint
+
+import sys, os
+import subprocess
+
+author = "tyler@tolaris.com"
+version = "1.0.8"
+prog = os.path.basename(sys.argv[0])
+
+def usage(retcode=0):
+    print """\
+%(prog)s - concise wrapper to apt-get\n\
+\n\
+Usage: %(prog)s command [options]\n\
+       %(prog)s help command [options]\n\
+       %(prog)s version\n\
+\n\
+Commands and their apt-get equivalents:\n\
+ap  - autopurge (autoremove --purge)\n\
+ar  - autoremove\n\
+c   - clean\n\
+d   - download (install --reinstall --download)\n\
+do  - dist-upgrade --download\n\
+du  - dist-upgrade\n\
+f   - -f install\n\
+i   - install\n\
+ok  - purge old kernels and headers\n\
+p   - purge (remove --purge)\n\
+r   - remove\n\
+ri  - reinstall (install --reinstall)\n\
+u   - update\n\
+udu - update, dist-upgrade\n\
+""" % {'prog': prog}
+    sys.exit(retcode)
+
+def get_package_version(package):
+    """Get version of a kernel package"""
+    import re
+    # version-packageversion must begin with a digit, and may contain alphanumerics,
+    m = re.search('([0-9][0-9a-zA-Z.+:-]*-[0-9][0-9a-zA-Z.+:]*)', package)
+    # We want to raise an exception if the match fails. Accessing group will do that.
+    return(m.group(1))
+
+def get_old_kernels():
+    """Get package names of all kernel versions that aren't the current or newest kernel"""
+    # get list of installed "linux-xxx-000-00" packages
+    p = subprocess.Popen(["dpkg", "-l", "linux-*-[0-9-]*-[0-9]*", "pve-kernel-[0-9-]*-[0-9]*"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = p.communicate()
+    p.wait()
+    packages = []
+    for line in stdout.split('\n'):
+        # find only normally-installed packages (ignore held files)
+        if line.find("ii") == 0:
+            packages.append(line.split()[1])
+
+    # get version numbers
+    versions = []
+    for package in packages:
+        versions.append(get_package_version(package))
+
+    # get highest kernel
+    from distutils.version import LooseVersion
+    versions.sort(key=LooseVersion)
+    kernel_highest = versions[-1]
+
+    # get current kernel
+    p = subprocess.Popen(["uname", "-r"], stdout=subprocess.PIPE)
+    stdout, stderr = p.communicate()
+    p.wait()
+    versions = stdout.split('\n')[0].split('-')
+    kernel_current = versions[0] + "-" + versions[1]
+
+    # generate list of packages to delete
+    victims = []
+    for package in packages:
+        version = get_package_version(package)
+        if version != kernel_highest and version != kernel_current:
+            victims.append(package)
+
+    #print("kernel_highest = " + kernel_highest)
+    #print("kernel_current = " + kernel_current)
+    #print("victims = ", victims)
+
+    return(" ".join(victims))
+
+if len(sys.argv) < 2:
+    usage(1)
+
+sudo="sudo "
+if os.getuid() == 0 :
+    sudo=""
+
+argcommand = sys.argv[1]
+argsuffix = sys.argv[2:]
+showHelp = False
+
+if argcommand == "help":
+    if len(sys.argv) < 3:
+        usage(1)
+    showHelp = True
+    argcommand = sys.argv[2]
+    argsuffix = sys.argv[3:]
+elif argcommand == "version":
+    print "%s %s, by %s" % (prog, version, author)
+    sys.exit()
+
+argoptions = ""
+for argoption in argsuffix:
+    argoptions = argoptions + " " + argoption
+
+aptcommand = sudo + "apt-get "
+
+if argcommand == "ap":
+    command = aptcommand + "autoremove --purge" + argoptions
+elif argcommand == "ar":
+    command = aptcommand + "autoremove" + argoptions
+elif argcommand == "c":
+    command = aptcommand + "clean" + argoptions
+elif argcommand == "d":
+# This command doesn't take into account multiarch libs like 
+# debianutils:i386. See "apt-cache depends less"
+#    command = "apt-cache depends" + argoptions + " |grep -v \"Conflicts:\|Replaces:\"|awk '{print $NF}'|sed -e 's/[<>]//g'|xargs " + sudo + "apt-get install --reinstall -d"
+    command = aptcommand + "install --reinstall -d" + argoptions
+elif argcommand == "do":
+    command = aptcommand + "dist-upgrade --download" + argoptions
+elif argcommand == "du":
+    command = aptcommand + "dist-upgrade" + argoptions
+elif argcommand == "f":
+    command = aptcommand + "-f install"
+elif argcommand == "i":
+    command = aptcommand + "install" + argoptions
+elif argcommand == "ok":
+    old_kernels = get_old_kernels()
+    if old_kernels:
+        command = aptcommand + "remove --purge " + old_kernels
+    else:
+        print "No old kernels found."
+        sys.exit(1)
+elif argcommand == "p":
+    command = aptcommand + "remove --purge" + argoptions
+elif argcommand == "r":
+    command = aptcommand + "remove" + argoptions
+elif argcommand == "ri":
+    command = aptcommand + "install --reinstall" + argoptions
+elif argcommand == "u":
+    command = aptcommand + "update" + argoptions
+elif argcommand == "udu":
+    command = "(" + aptcommand + "update ; " + aptcommand + "dist-upgrade)"
+else:
+    usage(1)
+
+if (showHelp):
+    print "\"" + prog + " " + argcommand + argoptions + "\" is equivalent to \"" + command + "\""
+else:
+    # TODO: eliminate the shell invocation
+    subprocess.call(command, shell=True)
+
