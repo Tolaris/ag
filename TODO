@@ -1,0 +1,4 @@
+Catch Ctrl-C
+Multi-command
+Remove uid=0 sudo check
+Rewrite help to print one line per command
