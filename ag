@@ -5,7 +5,7 @@ import sys, os
 import subprocess
 
 author = "tyler@tolaris.com"
-version = "1.0.8"
+version = "1.0.9"
 prog = os.path.basename(sys.argv[0])
 
 def usage(retcode=0):
@@ -25,6 +25,7 @@ do  - dist-upgrade --download\n\
 du  - dist-upgrade\n\
 f   - -f install\n\
 i   - install\n\
+maint - equivalent to "f, ok, u, du" with -y option\n\
 ok  - purge old kernels and headers\n\
 p   - purge (remove --purge)\n\
 r   - remove\n\
@@ -130,6 +131,17 @@ elif argcommand == "f":
     command = aptcommand + "-f install"
 elif argcommand == "i":
     command = aptcommand + "install" + argoptions
+# TODO(tyler) - refactor the whole file to use str.format(), and add support for
+# args like -y
+elif argcommand == "maint":
+  command = "({} -y -f install".format(aptcommand)
+  old_kernels = get_old_kernels()
+  if old_kernels:
+    command += "&& {} -y remove --purge {}".format(aptcommand, old_kernels)
+  command += "&& {} -y update".format(aptcommand)
+  command += "&& {} -y dist-upgrade".format(aptcommand)
+  command += "&& {} -y autoremove --purge".format(aptcommand)
+  command += ")"
 elif argcommand == "ok":
     old_kernels = get_old_kernels()
     if old_kernels:
