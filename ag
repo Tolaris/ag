@@ -5,7 +5,7 @@ import sys, os
 import subprocess
 
 author = "tyler@tolaris.com"
-version = "1.0.9"
+version = "1.0.10"
 prog = os.path.basename(sys.argv[0])
 
 def usage(retcode=0):
@@ -138,7 +138,7 @@ elif argcommand == "maint":
   old_kernels = get_old_kernels()
   if old_kernels:
     command += "&& {} -y remove --purge {}".format(aptcommand, old_kernels)
-  command += "&& {} -y update".format(aptcommand)
+  command += "&& {} -y update --allow-releaseinfo-change".format(aptcommand)
   command += "&& {} -y dist-upgrade".format(aptcommand)
   command += "&& {} -y autoremove --purge".format(aptcommand)
   command += ")"
@@ -156,9 +156,9 @@ elif argcommand == "r":
 elif argcommand == "ri":
     command = aptcommand + "install --reinstall" + argoptions
 elif argcommand == "u":
-    command = aptcommand + "update" + argoptions
+    command = aptcommand + "update --allow-releaseinfo-change" + argoptions
 elif argcommand == "udu":
-    command = "(" + aptcommand + "update ; " + aptcommand + "dist-upgrade)"
+    command = "(" + aptcommand + "update --allow-releaseinfo-change; " + aptcommand + "dist-upgrade)"
 else:
     usage(1)
 
