@@ -7,7 +7,7 @@ import subprocess
 import sys
 
 author = "tyler@tolaris.com"
-version = "1.1.1"
+version = "1.1.2"
 prog = os.path.basename(sys.argv[0])
 
 def usage(retcode=0):
@@ -51,8 +51,8 @@ def loose_version(v):
 
 def get_old_kernels():
   """Get package names of all kernel versions that aren't the current or newest kernel"""
-  # get list of installed "linux-xxx-000-00" packages
-  p = subprocess.Popen(["dpkg", "-l", "linux-*-[0-9-]*-[0-9]*", "pve-kernel-[0-9-]*-[0-9]*"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf8")
+  # get list of installed "linux-image-000-00" packages
+  p = subprocess.Popen(["dpkg", "-l", "linux-image-[0-9-]*-[0-9]*", "pve-kernel-[0-9-]*-[0-9]*"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf8")
   stdout, stderr = p.communicate()
   p.wait()
   packages = []
